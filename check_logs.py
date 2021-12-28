@@ -6,20 +6,23 @@ import os
 import re
 import sys
 
-FAILED_LOGIN_KEY = 0
+FAILED_LOGIN_INVALID_KEY = 0
+FAILED_LOGIN_INVALID_USER = 1
 
 CSV_DELIMITER = ";"
 MONTHS = {"jan":1, "feb":2, "mar":3, "apr":4, "may":5, "jun":6, "jul":7, "aug":8, "sep":9, "oct":10, "nov":11, "dec":12 }
 
 regular_expressions = {
-    FAILED_LOGIN_KEY: "^\w{3}\s{1,2}\d{1,2} \d{2}:\d{2}:\d{2} pi-nas sshd\[\d+\]: Failed publickey.+$"
+    FAILED_LOGIN_INVALID_KEY: "^\w{3}\s{1,2}\d{1,2} \d{2}:\d{2}:\d{2} pi-nas sshd\[\d+\]: Failed publickey.+$",
+    FAILED_LOGIN_INVALID_USER: "^\w{3}\s{1,2}\d{1,2} \d{2}:\d{2}:\d{2} pi-nas sshd\[\d+\]: Invalid user.+$"
 }
 
 line_parsing_func = { }
 
 
 def add_parsing_functions():
-    line_parsing_func[FAILED_LOGIN_KEY] = parse_failed_login
+    line_parsing_func[FAILED_LOGIN_INVALID_KEY] = parse_login_invalid_key
+    line_parsing_func[FAILED_LOGIN_INVALID_USER] = parse_login_invalid_user
 
 
 def parse_arguments():
@@ -30,7 +33,6 @@ def parse_arguments():
 
 
 def create_regex_patterns():
-    global regular_expressions
     regex_patterns = []
     for key, value in regular_expressions.items():
         pattern = re.compile(value)
@@ -71,8 +73,15 @@ def parse_ip(line):
     return parse_field(line, substr_before_value, substr_after_value)
 
 
-def parse_user(line):
+def parse_username_invalid_key(line):
     substr_before_value = "for "
+    substr_after_value = " "
+
+    return parse_field(line, substr_before_value, substr_after_value)
+
+
+def parse_invalid_username(line):
+    substr_before_value = "user "
     substr_after_value = " "
 
     return parse_field(line, substr_before_value, substr_after_value)
@@ -110,9 +119,18 @@ def parse_date(line):
     return f"{year_no}-{month_no}-{day_no} {date_splitted[-1]}"
 
 
-def parse_failed_login(line):
+def parse_login_invalid_key(line):
     ip = parse_ip(line)
-    user = parse_user(line)
+    user = parse_username_invalid_key(line)
+    port = parse_port(line)
+    date = parse_date(line)
+
+    return LoginAttempt(user, ip, port, date)
+
+
+def parse_login_invalid_user(line):
+    ip = parse_ip(line)
+    user = parse_invalid_username(line)
     port = parse_port(line)
     date = parse_date(line)
 
@@ -176,7 +194,7 @@ def main():
                 file_counter += 1
                 base_log_string = f"File {file_counter} of {total_files}"
 
-                print(f"{base_log_string}: Reading log file: {log}...")
+                print(f"{base_log_string}: Reading log file: {log.name}...")
                 matches = read_log(log, regex_patterns)
                 print(f"{base_log_string}: Found {len(matches)} matches!")
 
