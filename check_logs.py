@@ -98,9 +98,7 @@ def parse_date(line):
     start_index = 0
     end_index = 15
     str_split_count_padded = 4
-
     today = datetime.today()
-
     date = line[start_index:end_index].strip()
     date_splitted = [ x.strip() for x in date.split(" ") ]
 
