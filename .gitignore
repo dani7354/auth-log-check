@@ -1,6 +1,7 @@
 .idea/
 __pycache__/
 test/
+venv/
 
 *.log
 *.csv
