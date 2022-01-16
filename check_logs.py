@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from argparse import ArgumentParser, FileType
-from datetime import datetime
 from records import LoginAttempt, Connection
+import parsing
 import os
 import re
 import sys
+
 
 FAILED_LOGIN_INVALID_KEY = 0
 FAILED_LOGIN_INVALID_USER = 1
@@ -14,8 +15,6 @@ LOGIN_ATTEMPT = "login_attempt"
 CONNECTION = "connection"
 CSV_DELIMITER = ";"
 
-MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "oct": 10,
-          "nov": 11, "dec": 12}
 
 key_to_typename = {
     FAILED_LOGIN_INVALID_KEY: LOGIN_ATTEMPT,
@@ -78,86 +77,28 @@ def read_log(log, regex_patterns):
     return matches
 
 
-def parse_field(line, substr_before, substr_after):
-    start_index = line.find(substr_before) + len(substr_before)
-    end_index = line.find(substr_after, start_index)
-
-    return line[start_index:end_index].strip()
-
-
-def parse_ip(line):
-    substr_before_value = "from "
-    substr_after_value = " "
-
-    return parse_field(line, substr_before_value, substr_after_value)
-
-
-def parse_username_invalid_key(line):
-    substr_before_value = "for "
-    substr_after_value = " "
-
-    return parse_field(line, substr_before_value, substr_after_value)
-
-
-def parse_invalid_username(line):
-    substr_before_value = "user "
-    substr_after_value = " "
-
-    return parse_field(line, substr_before_value, substr_after_value)
-
-
-def parse_port(line):
-    substr_before_value = "port "
-    substr_after_value = " "
-
-    return parse_field(line, substr_before_value, substr_after_value)
-
-
-def parse_date(line):
-    start_index = 0
-    end_index = 15
-    str_split_count_padded = 4
-    today = datetime.today()
-    date = line[start_index:end_index].strip()
-    date_split = [x.strip() for x in date.split(" ")]
-
-    if len(date_split) == str_split_count_padded:
-        day_no = f"0{date_split[2]}"
-    else:
-        day_no = date_split[1]
-
-    month_no = MONTHS[date_split[0].lower()]
-
-    if month_no > today.month:
-        year_no = today.year - 1
-    else:
-        year_no = today.year
-
-    return f"{year_no}-{month_no}-{day_no} {date_split[-1]}"
-
-
 def parse_login_invalid_key(line):
-    ip = parse_ip(line)
-    user = parse_username_invalid_key(line)
-    port = parse_port(line)
-    date = parse_date(line)
+    ip = parsing.parse_ip(line)
+    user = parsing.parse_username_invalid_key(line)
+    port = parsing.parse_port(line)
+    date = parsing.parse_date(line)
 
     return LoginAttempt(user, ip, port, date)
 
 
 def parse_login_invalid_user(line):
-    ip = parse_ip(line)
-    user = parse_invalid_username(line)
-    port = parse_port(line)
-    date = parse_date(line)
+    ip = parsing.parse_ip(line)
+    user = parsing.parse_invalid_username(line)
+    port = parsing.parse_port(line)
+    date = parsing.parse_date(line)
 
     return LoginAttempt(user, ip, port, date)
 
 
 def parse_new_connection(line):
-    ip = parse_ip(line)
-    port = parse_port(line)
-    date = parse_date(line)
+    ip = parsing.parse_ip(line)
+    port = parsing.parse_port(line)
+    date = parsing.parse_date(line)
 
     return Connection(ip, port, date)
 
@@ -208,18 +149,22 @@ def exclude_existing_records_from_file(new_records, output_file, key):
         record = create_record(line, key)
         existing_records_dct[record.id] = record
 
-    for key in existing_records_dct.keys():
-        if key in new_records_dct:
+    for key in new_records_dct.keys():
+        if key in existing_records_dct:
             new_records.remove(new_records_dct[key])
 
 
 def exclude_existing_records(new_records, output_dir):
     records_by_type = get_records_by_type(new_records)
+    new_records = {}
     for key, records in records_by_type.items():
         filename = output_filenames[key]
         exclude_existing_records_from_file(records, os.path.join(output_dir, filename), key)
 
-    return records_by_type
+        if len(records) > 0:
+            new_records[key] = records
+
+    return new_records
 
 
 def write_to_file(file, records):
@@ -269,6 +214,11 @@ def main():
 
         print("Excluding existing rows from results...")
         new_records_by_type = exclude_existing_records(new_matches, arguments.output_dir)
+
+        if len(new_records_by_type) == 0:
+            print("No rows to write...")
+            sys.exit(0)
+
         for type_key, records in new_records_by_type.items():
             output_file = os.path.join(arguments.output_dir, output_filenames[type_key])
 
