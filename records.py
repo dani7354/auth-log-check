@@ -11,10 +11,18 @@ class Record:
         self.datetime = datetime
         self.id = key if key is not None else self._generate_id()
 
+    def __eq__(self, other):
+        if isinstance(other, Record):
+            return self.id == other.id
+        return False
+
     def _generate_id(self):
         pass
 
     def create_csv_record(self):
+        pass
+
+    def create_csv_header_row(self):
         pass
 
 
@@ -29,7 +37,6 @@ class Connection(Record):
     def create_csv_record(self, delimiter=DEFAULT_CSV_DELIMITER):
         return f"{self.id}{delimiter}{self.src_ip}{delimiter}{self.src_port}{delimiter}{self.datetime}"
 
-    @staticmethod
     def create_csv_header_row(self, delimiter=DEFAULT_CSV_DELIMITER):
         return f"id{delimiter}src_ip{delimiter}src_port{delimiter}date"
 
@@ -55,9 +62,8 @@ class LoginAttempt(Record):
         return f"{self.id}{delimiter}{self.user}{delimiter}{self.src_ip}{delimiter}{self.src_port}" \
                f"{delimiter}{self.datetime}"
 
-    @staticmethod
     def create_csv_header_row(self, delimiter=DEFAULT_CSV_DELIMITER):
-        return f"id{delimiter}src_ip{delimiter}src_port{delimiter}date"
+        return f"id{delimiter}user{delimiter}src_ip{delimiter}src_port{delimiter}date"
 
     @staticmethod
     def create_from_csv_record(record, delimiter=DEFAULT_CSV_DELIMITER):
