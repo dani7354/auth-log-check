@@ -47,6 +47,7 @@ def parse_arguments():
     parser = ArgumentParser()
     parser.add_argument("-o", "--output-dir", dest="output_dir", required=True)
     parser.add_argument("-l", "--logs", dest="log_files", nargs="+", type=FileType("r"), required=True)
+
     return parser.parse_args()
 
 
