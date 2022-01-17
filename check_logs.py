@@ -117,9 +117,9 @@ def parse_matched_lines(matches):
 
 def create_record(csv_record, key):
     typename = key_to_typename[key]
-    if typename == "connection":
+    if typename == CONNECTION:
         return Connection.create_from_csv_record(csv_record)
-    elif typename == "login_attempt":
+    elif typename == LOGIN_ATTEMPT:
         return LoginAttempt.create_from_csv_record(csv_record)
 
     raise Exception("Record type not implemented!")
