@@ -5,3 +5,4 @@ venv/
 
 *.log
 *.csv
+email_config.json
