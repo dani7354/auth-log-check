@@ -8,9 +8,10 @@ import ssl
 
 
 NOTIFICATION_EMAIL_TEMPLATE = "./email_templates/notification.html"
+EMAIL_TEMPLATE_ROOT_ID = "root"
 
 
-class MailConfiguration:
+class EmailConfiguration:
     def __init__(self, smtp_host, smtp_port, smtp_user, smtp_password, mail_sender, mail_recipient):
         self.smtp_host = smtp_host
         self.smtp_port = smtp_port
@@ -20,15 +21,14 @@ class MailConfiguration:
         self.mail_recipient = mail_recipient
 
 
-class SendEmailService:
+class EmailNotificationService:
     def __init__(self, configuration):
         self.configuration = configuration
 
-    def create_message_str(self, new_records) -> MIMEText:
-        email_body = SendEmailService.read_html_template(NOTIFICATION_EMAIL_TEMPLATE)
-
+    def _create_message_str(self, new_records) -> MIMEText:
+        email_body = EmailNotificationService._read_html_template(NOTIFICATION_EMAIL_TEMPLATE)
         soup = BeautifulSoup(email_body)
-        root_tag = soup.select_one("#root")
+        root_tag = soup.select_one(f"#{EMAIL_TEMPLATE_ROOT_ID}")
 
         for type_name, records in new_records:
             if len(records) == 0:
@@ -53,15 +53,19 @@ class SendEmailService:
 
         return mime_text_message
 
-    def send_email(self, email_str) -> None:
+    def _send_email(self, email_str) -> None:
         context = ssl.create_default_context()
         with smtplib.SMTP(host=self.configuration.smtp_host, port=self.configuration.smtp_port) as mail_server:
             mail_server.starttls(context=context)
             mail_server.login(self.configuration.smtp_user, self.configuration.smtp_password)
             mail_server.send_message(email_str)
 
+    def send_email_notification(self, new_records):
+        email_str = self._create_message_str(new_records)
+        self._send_email(email_str)
+
     @staticmethod
-    def read_html_template(path) -> str:
+    def _read_html_template(path) -> str:
         with open(path, "r", encoding="utf-8") as template_file:
             template = template_file.read()
 

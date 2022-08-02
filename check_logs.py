@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 from argparse import ArgumentParser, FileType
-from records import LoginAttempt, Connection
+from records import LoginAttempt, Connection, Record
+from email_notification import EmailNotificationService, EmailConfiguration
 import parsing
+import json
 import os
 import re
 import sys
@@ -14,6 +16,14 @@ NEW_CONNECTION = 2
 LOGIN_ATTEMPT = "login_attempt"
 CONNECTION = "connection"
 CSV_DELIMITER = ";"
+
+# for mail configuration
+SMTP_HOST = "smtp_host"
+SMTP_PORT = "smtp_port"
+SMTP_USER = "smtp_user"
+SMTP_PASSWORD = "smtp_password"
+MAIL_RECIPIENT = "mail_recipient"
+MAIL_SENDER = "mail_sender"
 
 
 key_to_typename = {
@@ -37,7 +47,7 @@ output_filenames = {
 line_parsing_func = {}
 
 
-def add_parsing_functions():
+def add_parsing_functions() -> None:
     line_parsing_func[FAILED_LOGIN_INVALID_KEY] = parse_login_invalid_key
     line_parsing_func[FAILED_LOGIN_INVALID_USER] = parse_login_invalid_user
     line_parsing_func[NEW_CONNECTION] = parse_new_connection
@@ -47,11 +57,12 @@ def parse_arguments():
     parser = ArgumentParser()
     parser.add_argument("-o", "--output-dir", dest="output_dir", required=True)
     parser.add_argument("-l", "--logs", dest="log_files", nargs="+", type=FileType("r"), required=True)
+    parser.add_argument("-ec", "--email-config", dest="email_config", type=FileType("r"), required=False)
 
     return parser.parse_args()
 
 
-def create_regex_patterns():
+def create_regex_patterns() -> list:
     regex_patterns = []
     for key, value in regular_expressions.items():
         pattern = re.compile(value)
@@ -60,7 +71,7 @@ def create_regex_patterns():
     return regex_patterns
 
 
-def line_is_match(line, regex_patterns):
+def line_is_match(line, regex_patterns) -> tuple:
     for pattern in regex_patterns:
         if pattern[1].match(line):
             return True, pattern[0]
@@ -68,7 +79,7 @@ def line_is_match(line, regex_patterns):
     return False, None
 
 
-def read_log(log, regex_patterns):
+def read_log(log, regex_patterns) -> list:
     matches = []
     for line in log:
         result = line_is_match(line, regex_patterns)
@@ -78,7 +89,7 @@ def read_log(log, regex_patterns):
     return matches
 
 
-def parse_login_invalid_key(line):
+def parse_login_invalid_key(line) -> LoginAttempt:
     ip = parsing.parse_ip(line)
     user = parsing.parse_username_invalid_key(line)
     port = parsing.parse_port(line)
@@ -87,7 +98,7 @@ def parse_login_invalid_key(line):
     return LoginAttempt(user, ip, port, date)
 
 
-def parse_login_invalid_user(line):
+def parse_login_invalid_user(line) -> LoginAttempt:
     ip = parsing.parse_ip(line)
     user = parsing.parse_invalid_username(line)
     port = parsing.parse_port(line)
@@ -96,7 +107,7 @@ def parse_login_invalid_user(line):
     return LoginAttempt(user, ip, port, date)
 
 
-def parse_new_connection(line):
+def parse_new_connection(line) -> Connection:
     ip = parsing.parse_ip(line)
     port = parsing.parse_port(line)
     date = parsing.parse_date(line)
@@ -104,7 +115,7 @@ def parse_new_connection(line):
     return Connection(ip, port, date)
 
 
-def parse_matched_lines(matches):
+def parse_matched_lines(matches) -> list:
     parsed_matches = []
     for match in matches:
         type_key = match[0]
@@ -116,7 +127,7 @@ def parse_matched_lines(matches):
     return parsed_matches
 
 
-def create_record(csv_record, key):
+def create_record(csv_record, key) -> Record:
     typename = key_to_typename[key]
     if typename == CONNECTION:
         return Connection.create_from_csv_record(csv_record)
@@ -126,7 +137,7 @@ def create_record(csv_record, key):
     raise Exception("Record type not implemented!")
 
 
-def get_records_by_type(matched_records):
+def get_records_by_type(matched_records) -> dict:
     records_by_type = {}
     for record in matched_records:
         type_key = record[0]
@@ -137,7 +148,7 @@ def get_records_by_type(matched_records):
     return records_by_type
 
 
-def exclude_existing_records_from_file(new_records, output_file, key):
+def exclude_existing_records_from_file(new_records, output_file, key) -> None:
     if not os.path.isfile(output_file):
         return
 
@@ -155,7 +166,7 @@ def exclude_existing_records_from_file(new_records, output_file, key):
             new_records.remove(new_records_dct[key])
 
 
-def exclude_existing_records(new_records, output_dir):
+def exclude_existing_records(new_records, output_dir) -> dict:
     records_by_type = get_records_by_type(new_records)
     new_records = {}
     for key, records in records_by_type.items():
@@ -168,7 +179,7 @@ def exclude_existing_records(new_records, output_dir):
     return new_records
 
 
-def write_to_file(file, records):
+def write_to_file(file, records) -> None:
     if not os.path.isfile(file):
         with open(file, "w") as output_file:
             output_file.write(f"{records[0][1].create_csv_header_row(CSV_DELIMITER)}\n")
@@ -179,7 +190,34 @@ def write_to_file(file, records):
             output_file.write(f"{line}\n")
 
 
-def main():
+def get_config_from_json(path) -> dict:
+    with open(path, "r") as config_file:
+        config_data = json.load(config_file)
+
+        return config_data
+
+
+def load_email_config(path) -> EmailConfiguration:
+    config_data = get_config_from_json(path)
+    if not {SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, MAIL_SENDER, MAIL_RECIPIENT} <= config_data.keys():
+        raise Exception("Missing properties in config file!")
+
+    host = config_data[SMTP_HOST]
+    port = config_data[SMTP_PORT]
+    user = config_data[SMTP_USER]
+    password = config_data[SMTP_PASSWORD]
+    sender = config_data[MAIL_SENDER]
+    recipient = config_data[MAIL_RECIPIENT]
+
+    return EmailConfiguration(host, port, user, password, sender, recipient)
+
+
+def send_email_notification(new_records, email_configuration) -> None:
+    email_service = EmailNotificationService(email_configuration)
+    email_service.send_email_notification(new_records)
+
+
+def main() -> None:
     try:
         print("Starting check...")
 
