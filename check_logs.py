@@ -191,10 +191,7 @@ def write_to_file(file, records) -> None:
 
 
 def get_config_from_json(path) -> dict:
-    with open(path, "r") as config_file:
-        config_data = json.load(config_file)
-
-        return config_data
+    return json.load(path)
 
 
 def load_email_config(path) -> EmailConfiguration:
@@ -263,6 +260,12 @@ def main() -> None:
 
             print(f"Writing to {output_file}...")
             write_to_file(output_file, records)
+
+        if arguments.email_config:
+            print(f"Sending notification email...")
+            email_configuration = load_email_config(arguments.email_config)
+            send_email_notification(new_records_by_type, email_configuration)
+            print("Email sent")
 
         if error_count == 0:
             print("Done!")

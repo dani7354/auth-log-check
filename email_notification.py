@@ -27,22 +27,24 @@ class EmailNotificationService:
 
     def _create_message_str(self, new_records) -> MIMEText:
         email_body = EmailNotificationService._read_html_template(NOTIFICATION_EMAIL_TEMPLATE)
-        soup = BeautifulSoup(email_body)
+        soup = BeautifulSoup(email_body, "html.parser")
         root_tag = soup.select_one(f"#{EMAIL_TEMPLATE_ROOT_ID}")
 
-        for type_name, records in new_records:
+        for type_name, records in new_records.items():
             if len(records) == 0:
                 continue
-            record = records[0]
+            record = records[0][1]
 
-            type_name_tag = soup.new_tag(record.get_type_name())
-            list_tag = soup.new_tag("ul")
-
+            type_name_tag = soup.new_tag("h3")
+            type_name_tag.string = record.get_type_name()
             root_tag.append(type_name_tag)
+
+            list_tag = soup.new_tag("ul")
             root_tag.append(list_tag)
 
             for new_record in records:
-                li_tag = root_tag.new_tag("li", string=new_record.__str__())
+                li_tag = soup.new_tag("li")
+                li_tag.string = new_record[1].__str__()
                 list_tag.append(li_tag)
 
         mime_text_message = MIMEText(soup.__str__(), 'html', 'utf-8')
