@@ -16,7 +16,7 @@ class Record:
         return False
 
     def __str__(self):
-        return f"ID: {self.id} Date and time: {self.datetime} Source IP: {self.src_ip} Source port: {self.src_port}"
+        return f"{self.get_type_name()} ID: {self.id} Date and time: {self.datetime} Source IP: {self.src_ip} Source port: {self.src_port}"
 
     def _generate_id(self):
         pass

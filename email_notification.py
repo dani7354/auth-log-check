@@ -30,22 +30,15 @@ class EmailNotificationService:
         soup = BeautifulSoup(email_body, "html.parser")
         root_tag = soup.select_one(f"#{EMAIL_TEMPLATE_ROOT_ID}")
 
-        for type_name, records in new_records.items():
-            if len(records) == 0:
-                continue
-            record = records[0][1]
+        list_tag = soup.new_tag("ul")
+        root_tag.append(list_tag)
 
-            type_name_tag = soup.new_tag("h3")
-            type_name_tag.string = record.get_type_name()
-            root_tag.append(type_name_tag)
+        all_records = self._sort_records_by_date(new_records)
 
-            list_tag = soup.new_tag("ul")
-            root_tag.append(list_tag)
-
-            for new_record in records:
-                li_tag = soup.new_tag("li")
-                li_tag.string = new_record[1].__str__()
-                list_tag.append(li_tag)
+        for new_record in all_records:
+            li_tag = soup.new_tag("li")
+            li_tag.string = new_record.__str__()
+            list_tag.append(li_tag)
 
         mime_text_message = MIMEText(soup.__str__(), 'html', 'utf-8')
         subject = f"auth-log-check: new auth log entries"
@@ -54,6 +47,17 @@ class EmailNotificationService:
         mime_text_message['To'] = self.configuration.mail_recipient
 
         return mime_text_message
+
+    @staticmethod
+    def _sort_records_by_date(new_records):
+        all_records = []
+        for type_id, records_and_type in new_records.items():
+            records_only = [r[1] for r in records_and_type]
+            all_records.extend(records_only)
+
+        all_records.sort(key=lambda r: r.datetime)
+
+        return all_records
 
     def _send_email(self, email_str) -> None:
         context = ssl.create_default_context()
