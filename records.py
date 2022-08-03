@@ -64,7 +64,7 @@ class LoginAttempt(Record):
         super().__init__(src_ip, src_port, datetime, key)
 
     def __str__(self):
-        base_str = super.__str__(self)
+        base_str = super().__str__()
         return f"{base_str} Username: {self.user}"
 
     def create_csv_record(self, delimiter=DEFAULT_CSV_DELIMITER):
