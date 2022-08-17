@@ -8,7 +8,6 @@ import os
 import re
 import sys
 
-
 FAILED_LOGIN_INVALID_KEY = 0
 FAILED_LOGIN_INVALID_USER = 1
 NEW_CONNECTION = 2
