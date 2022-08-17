@@ -24,7 +24,6 @@ SMTP_PASSWORD = "smtp_password"
 MAIL_RECIPIENT = "mail_recipient"
 MAIL_SENDER = "mail_sender"
 
-
 key_to_typename = {
     FAILED_LOGIN_INVALID_KEY: LOGIN_ATTEMPT,
     FAILED_LOGIN_INVALID_USER: LOGIN_ATTEMPT,

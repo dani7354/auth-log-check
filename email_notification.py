@@ -5,7 +5,6 @@ from email.mime.text import MIMEText
 import smtplib
 import ssl
 
-
 NOTIFICATION_EMAIL_TEMPLATE = "./email_templates/notification.html"
 HTML_TABLE_ID = "records"
 HTML_TR = "tr"
