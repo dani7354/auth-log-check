@@ -1,6 +1,5 @@
 from hashlib import sha256
 
-
 DEFAULT_CSV_DELIMITER = ";"
 
 
@@ -16,6 +15,9 @@ class Record:
             return self.id == other.id
         return False
 
+    def __str__(self):
+        return f"{self.get_type_name()} ID: {self.id} Date and time: {self.datetime} Source IP: {self.src_ip} Source port: {self.src_port}"
+
     def _generate_id(self):
         pass
 
@@ -24,6 +26,9 @@ class Record:
 
     def create_csv_header_row(self):
         pass
+
+    def get_type_name(self):
+        return self.__class__.__name__
 
 
 class Connection(Record):
@@ -57,6 +62,10 @@ class LoginAttempt(Record):
     def __init__(self, user, src_ip, src_port, datetime, key=None):
         self.user = user
         super().__init__(src_ip, src_port, datetime, key)
+
+    def __str__(self):
+        base_str = super().__str__()
+        return f"{base_str} Username: {self.user}"
 
     def create_csv_record(self, delimiter=DEFAULT_CSV_DELIMITER):
         return f"{self.id}{delimiter}{self.user}{delimiter}{self.src_ip}{delimiter}{self.src_port}" \
