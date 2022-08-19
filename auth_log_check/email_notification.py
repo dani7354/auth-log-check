@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+import os.path
 from bs4 import BeautifulSoup, Tag
 from email.header import Header
 from email.mime.text import MIMEText
 import smtplib
 import ssl
 
-NOTIFICATION_EMAIL_TEMPLATE = "./email_templates/notification.html"
+NOTIFICATION_EMAIL_TEMPLATE = f"{os.path.abspath(os.path.dirname(__file__))}/email_templates/notification.html"
 HTML_TABLE_ID = "records"
 HTML_TR = "tr"
 
@@ -27,7 +28,7 @@ class EmailNotificationService:
     def _create_message_str(self, new_records) -> MIMEText:
         all_records = self._sort_records_by_date(new_records)
 
-        email_body = EmailNotificationService._read_html_template(NOTIFICATION_EMAIL_TEMPLATE)
+        email_body = self._read_html_template(NOTIFICATION_EMAIL_TEMPLATE)
 
         soup = self._create_table(email_body, all_records)
 
