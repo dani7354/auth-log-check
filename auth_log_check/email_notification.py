@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-import os.path
 from bs4 import BeautifulSoup, Tag
 from email.header import Header
 from email.mime.text import MIMEText
 import smtplib
+import socket
 import ssl
+import os.path
 
 NOTIFICATION_EMAIL_TEMPLATE = f"{os.path.abspath(os.path.dirname(__file__))}/email_templates/notification.html"
+
 HTML_TABLE_ID = "records"
+HTML_HEADING_ID = "heading"
 HTML_TR = "tr"
+HTML_TD = "td"
 
 
 class EmailConfiguration:
@@ -44,8 +48,8 @@ class EmailNotificationService:
     def _create_table(cls, html_template_str, records) -> BeautifulSoup:
         soup = BeautifulSoup(html_template_str, "html.parser")
 
+        cls._create_heading(soup)
         table_tag = soup.select_one(f"#{HTML_TABLE_ID}")
-
         table_header_row = soup.new_tag("tr")
         table_tag.append(table_header_row)
 
@@ -56,22 +60,28 @@ class EmailNotificationService:
         return soup
 
     @staticmethod
-    def _create_table_row(soup, record) -> Tag:
-        tr_tag = soup.new_tag("tr")
+    def _create_heading(soup):
+        hostname = socket.gethostname()
+        heading_tag = soup.select_one(f"#{HTML_HEADING_ID}")
+        heading_tag.string = f"Nye hændelser {hostname}"
 
-        time_td = soup.new_tag("td")
+    @staticmethod
+    def _create_table_row(soup, record) -> Tag:
+        tr_tag = soup.new_tag(HTML_TR)
+
+        time_td = soup.new_tag(HTML_TD)
         time_td.string = record.datetime
 
-        type_td = soup.new_tag("td")
+        type_td = soup.new_tag(HTML_TD)
         type_td.string = record.get_type_name()
 
-        ip_td = soup.new_tag("td")
+        ip_td = soup.new_tag(HTML_TD)
         ip_td.string = record.src_ip
 
-        port_td = soup.new_tag("td")
+        port_td = soup.new_tag(HTML_TD)
         port_td.string = record.src_port
 
-        id_td = soup.new_tag("td")
+        id_td = soup.new_tag(HTML_TD)
         id_td.string = record.id
 
         tr_tag.append(time_td)
